@@ -2,7 +2,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset,  random_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-from params import IS_COLLAB, FOLDER
+from params import FOLDER
 
 from tqdm.autonotebook import tqdm
 from copy import copy
@@ -19,10 +19,7 @@ class MyCSVDataset(Dataset):
         self.delta_t_future = delta_t_future
         self.k = k
 
-        if IS_COLLAB:
-            folder_path = Path(f"{FOLDER}/market_data_{start_date.date()}-{end_date.date()}")
-        else: 
-            folder_path = Path(f"market_data_{start_date.date()}-{end_date.date()}")
+        folder_path = Path(f"{FOLDER}market_data_{start_date.date()}-{end_date.date()}")
         self.files = list(folder_path.rglob('*.csv'))
 
         # Используем ThreadPoolExecutor для параллельной обработки файлов

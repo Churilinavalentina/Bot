@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from pathlib import Path
 
 from pandas import DataFrame
@@ -9,10 +10,11 @@ from t_tech.invest.caching.market_data_cache.cache import MarketDataCache
 from t_tech.invest.caching.market_data_cache.cache_settings import (
     MarketDataCacheSettings,
 )
-from params import INTERVAL, START_DATE, END_DATE, TICKERS, IS_COLLAB, FOLDER
+from params import INTERVAL, START_DATE, END_DATE, TICKERS, FOLDER
 from tqdm.autonotebook import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
+load_dotenv()
 TOKEN = os.environ["INVEST_TOKEN"]
 #Параметры выгрузки:
 
@@ -42,11 +44,7 @@ def get_figi(ticker):
     
 def get_values(figi, interval, start_date, end_date, num_workers=5):
     with Client(TOKEN) as client:
-        if IS_COLLAB:
-            folder_path = Path(f"{FOLDER}/market_data_{start_date.date()}-{end_date.date()}")
-        else: 
-            folder_path = Path(f"market_data_{start_date.date()}-{end_date.date()}")
-        
+        folder_path = Path(f"{FOLDER}market_data_{start_date.date()}-{end_date.date()}")
         settings = MarketDataCacheSettings(base_cache_dir=folder_path)
         market_data_cache = MarketDataCache(settings=settings, services=client)
 
@@ -67,4 +65,4 @@ def get_values(figi, interval, start_date, end_date, num_workers=5):
 
 #get_figi()
 
-# get_values(get_figi(TICKERS).figi, INTERVAL, START_DATE, END_DATE, num_workers=1)
+get_values(get_figi(TICKERS).figi, INTERVAL, START_DATE, END_DATE, num_workers=1)

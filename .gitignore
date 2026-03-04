@@ -1,5 +1,7 @@
 .ipynb_checkpoints/
 __pycache__/
 market_data_2025-11-24-2026-02-24/
+market_data_2026-02-24-2026-02-28/
 venv/
 token
+.env
