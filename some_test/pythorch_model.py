@@ -20,7 +20,6 @@ from datetime import time
  
 """
 
-
 path_df = 'C:/Users/Valya/.vscode/Bot/market_data_cache/BBG004730N88/CANDLE_INTERVAL_1_MIN-1765185840-1770369780.csv' # Сбер
 epochs = 25
 batch_size = 3000

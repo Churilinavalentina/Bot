@@ -22,7 +22,7 @@ def main():
     with Client(TOKEN) as client:
         instruments: InstrumentsService = client.instruments
         tickers = []
-        for method in ["shares"]:#, "bonds", "etfs", "currencies", "futures"]:
+        for method in ["shares"]:      #, "bonds", "etfs", "currencies", "futures"]:
             for item in getattr(instruments, method)().instruments:
                 tickers.append(
                     {

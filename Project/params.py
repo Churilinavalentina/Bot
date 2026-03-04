@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from t_tech.invest import CandleInterval
 
+IS_COLLAB = 1
+FOLDER = '/content/drive/MyDrive/Colab Notebooks/'
 INTERVAL = CandleInterval.CANDLE_INTERVAL_1_MIN
 START_DATE = datetime(2025, 11, 24, tzinfo=timezone.utc)
 END_DATE = datetime(2026, 2, 24, tzinfo=timezone.utc)

@@ -3,7 +3,7 @@ import pickle # для сохранения объектов.
 
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
-from params import START_DATE, END_DATE, DELTA_T, DELTA_T_FUTURE, K, TRAIN_PART, BATCH_SIZE, EPOCHS, LOSS
+from params import START_DATE, END_DATE, DELTA_T, DELTA_T_FUTURE, K, TRAIN_PART, BATCH_SIZE, EPOCHS, LOSS, IS_COLLAB
 from read_data import MyCSVDataset, split_data, check_balance
 from model import MyModel, calc_metrics
 from pathlib import Path
@@ -63,5 +63,8 @@ for epoch in range(EPOCHS):
     # print(all_true)
     calc_metrics(all_preds, all_true)
 
-model_path = Path(f"model")
+if IS_COLLAB:
+    model_path = '/content/drive/MyDrive/Colab Notebooks/models/27_02.pth'
+else:
+    model_path = Path(f"model")
 torch.save(model.state_dict(), model_path)
