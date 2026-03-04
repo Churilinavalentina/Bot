@@ -1,4 +1,4 @@
-
+import os
 from pathlib import Path
 
 from pandas import DataFrame
@@ -9,7 +9,7 @@ from t_tech.invest.caching.market_data_cache.cache import MarketDataCache
 from t_tech.invest.caching.market_data_cache.cache_settings import (
     MarketDataCacheSettings,
 )
-from params import INTERVAL, START_DATE, END_DATE, TICKERS
+from params import INTERVAL, START_DATE, END_DATE, TICKERS, IS_COLLAB, FOLDER
 from tqdm.autonotebook import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
@@ -42,7 +42,12 @@ def get_figi(ticker):
     
 def get_values(figi, interval, start_date, end_date, num_workers=5):
     with Client(TOKEN) as client:
-        settings = MarketDataCacheSettings(base_cache_dir=Path(f"market_data_{start_date.date()}-{end_date.date()}"))
+        if IS_COLLAB:
+            folder_path = Path(f"{FOLDER}/market_data_{start_date.date()}-{end_date.date()}")
+        else: 
+            folder_path = Path(f"market_data_{start_date.date()}-{end_date.date()}")
+        
+        settings = MarketDataCacheSettings(base_cache_dir=folder_path)
         market_data_cache = MarketDataCache(settings=settings, services=client)
 
         def cache_candles(figi_item):
