@@ -8,7 +8,7 @@ from t_tech.invest import Client, SecurityTradingStatus
 from t_tech.invest.services import InstrumentsService
 from t_tech.invest.utils import quotation_to_decimal
 
-TOKEN = 't.2kt-ltTDgFp83htFE9vFk5K0Gtb4Wwnf-kfGH4RkSDxfxWf9BS5Hkmp8pMIxA0gs7PHOsCiQ7IyB7BjvEpOxwg'
+TOKEN = os.environ["INVEST_TOKEN"]
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(message)s", level=logging.DEBUG)
 logger = logging.getLogger(__name__)

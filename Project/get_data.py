@@ -13,7 +13,7 @@ from params import INTERVAL, START_DATE, END_DATE, TICKERS
 from tqdm.autonotebook import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-TOKEN = 't.2kt-ltTDgFp83htFE9vFk5K0Gtb4Wwnf-kfGH4RkSDxfxWf9BS5Hkmp8pMIxA0gs7PHOsCiQ7IyB7BjvEpOxwg'
+TOKEN = os.environ["INVEST_TOKEN"]
 #Параметры выгрузки:
 
 def get_figi(ticker):

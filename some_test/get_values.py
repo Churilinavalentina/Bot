@@ -10,7 +10,7 @@ from t_tech.invest.caching.market_data_cache.cache_settings import (
 )
 from t_tech.invest.utils import now
 
-TOKEN = 't.2kt-ltTDgFp83htFE9vFk5K0Gtb4Wwnf-kfGH4RkSDxfxWf9BS5Hkmp8pMIxA0gs7PHOsCiQ7IyB7BjvEpOxwg'
+TOKEN = os.environ["INVEST_TOKEN"]
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 
