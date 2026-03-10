@@ -2,6 +2,7 @@
 __pycache__/
 market_data_2025-11-24-2026-02-24/
 market_data_2026-02-24-2026-02-28/
+market_data_2026-03-10-2026-03-10/
 venv/
 token
 .env

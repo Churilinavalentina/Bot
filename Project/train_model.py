@@ -4,7 +4,7 @@ import pickle # для сохранения объектов.
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
 from params import START_DATE, END_DATE, DELTA_T, DELTA_T_FUTURE, K, TRAIN_PART, BATCH_SIZE, EPOCHS, LOSS, FOLDER
-from read_data import MyCSVDataset, split_data, check_balance
+from read_data import MyParquetDataset, split_data, check_balance
 from model import MyModel, calc_metrics
 from pathlib import Path
 
@@ -13,7 +13,7 @@ from pathlib import Path
 def main():
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    full_ds = MyCSVDataset(DELTA_T, DELTA_T_FUTURE, K, START_DATE, END_DATE)
+    full_ds = MyParquetDataset(DELTA_T, DELTA_T_FUTURE, K, START_DATE, END_DATE)
     train_ds, test_ds = split_data(full_ds, train_part=TRAIN_PART)
 
     check_balance(full_ds)

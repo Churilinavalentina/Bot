@@ -11,96 +11,81 @@ import numpy as np
 from pathlib import Path
 from params import START_DATE, END_DATE, DELTA_T, DELTA_T_FUTURE, K, NUM_EXECUTOR_READ
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor 
 
-class MyCSVDataset(Dataset):
+# TODO: чтение из паркета теперь
+class MyParquetDataset(Dataset):
     def __init__(self, delta_t, delta_t_future, k, start_date, end_date):
         self.delta_t = delta_t
         self.delta_t_future = delta_t_future
         self.k = k
 
         folder_path = Path(f"{FOLDER}market_data_{start_date.date()}-{end_date.date()}")
-        self.files = list(folder_path.rglob('*.csv'))
+        self.files = list(folder_path.rglob('*.parquet'))
 
         # Используем ThreadPoolExecutor для параллельной обработки файлов
         # max_workers можно поставить 4-8 в зависимости от процессора
         all_results = []
-        with ThreadPoolExecutor(max_workers=NUM_EXECUTOR_READ) as executor:
+        with ProcessPoolExecutor (max_workers=NUM_EXECUTOR_READ) as executor:
             all_results = list(tqdm(executor.map(self._process_single_file, self.files)))
 
         # Собираем результаты (фильтруем None, если файлы были пустые)
+        # Собираем все результаты
         all_x = [res[0] for res in all_results if res is not None]
         all_y = [res[1] for res in all_results if res is not None]
-        all_z = [res[2] for res in all_results if res is not None]
 
-        print(len(all_x))
-
-        if all_x:
-            self.X = torch.cat(all_x, dim=0)
-            self.y = torch.cat(all_y, dim=0)
-            self.z = torch.cat(all_z, dim=0)
-        else:
-            self.X, self.y= torch.empty(0), torch.empty(0)
+        # Конкатенируем уже НАРЕЗАННЫЕ окна
+        # Теперь стыки файлов физически не могут перемешаться
+        self.X = torch.cat(all_x, dim=0) # Станет [Total_Windows, Delta_T]
+        self.y = torch.cat(all_y, dim=0) # Станет [Total_Windows, 1]
 
         print(f'====> Итоговый размер: X={self.X.shape}, y={self.y.shape}')
 
     def _process_single_file(self, file_path):
         """Логика обработки одного файла (вынесена для многопоточности)"""
         try:
-            df = pd.read_csv(file_path, usecols=['time', 'open'])
-
-            # Ускоренный парсинг времени (берем часы срезом строки, если формат фиксирован)
-            # Если формат '2023-01-01 23:00:00', то часы это символы [11:13]
-            hours = df['time'].str[11:13]
-            df = df[hours != '23'].copy()
-
+            # 1. Читаем всё как строки, чтобы быстро обработать 'open'
+            df = pd.read_parquet(file_path, columns=['time', 'open'])
+            
+            # 2. Быстрый фильтр времени
+            df = df[df['time'].str[11:13] != '23'].copy()
             if df.empty: return None
 
-            # Ускоренный парсинг 'open' БЕЗ ast.literal_eval
-            # Строка выглядит как "{'units': 100, 'nano': 500000000}"
-            # Вытаскиваем числа простым строковым методом или regex
-            def fast_parse_open(val):
-                # Находим units и nano через простые правила (быстрее чем ast)
-                parts = val.replace('{', '').replace('}', '').replace("'", "").split(',')
-                d = {p.split(':')[0].strip(): int(p.split(':')[1]) for p in parts}
-                return d['units'] + d['nano'] / 1e9
+            # 3. Векторизованный парсинг цены
+            # nums = df['open'].str.extract(r"(\d+).+?(\d+)").astype(float)
+            # df['open'] = nums[0] + nums[1] / 1e9
 
-            df['open'] = df['open'].apply(fast_parse_open)
-            df['normal_price'] = (df['open']-df['open'].shift(1)) / df['open'].shift(1)*100
-            # Отрезаем края, где normal_price дал NaN
-            df = df.dropna(subset=['normal_price'])
+            # 4. Расчеты в Pandas (уже оптимизированы)
+            df['normal_price'] = df['open'].pct_change() * 100
+            future_max = df['open'].rolling(window=self.delta_t_future).max().shift(-self.delta_t_future)
+            df['predict_bool'] = ((future_max - df['open']) / df['open'] * 100 > self.k).astype(float)
 
-            # Расчет таргета (векторизован в Pandas, это быстро)
-            future_max = df['open'].rolling(window=self.delta_t_future + 1).max().shift(-self.delta_t_future)
-            df['predict_bool'] = (future_max - df['open']) / df['open'] * 100 > self.k
+            df = df.dropna()
+            
+            x_values = torch.tensor(df['normal_price'].values, dtype=torch.float32)
+            y_values = torch.tensor(df['predict_bool'].values, dtype=torch.float32)
 
-            # Отрезаем края, где rolling дал NaN
-            df = df.dropna(subset=['predict_bool'])
+            # 2. Нарезаем на окна прямо здесь через unfold
+            # Это создает тензор формы [количество_окон, delta_t]
+            # unfold(измерение, размер_окна, шаг)
+            if len(x_values) < self.delta_t: return None
+            
+            x_windows = x_values.unfold(0, self.delta_t, 1) 
+            
+            # 3. Таргеты берем со смещением (соответствующий концу окна)
+            y_targets = y_values[self.delta_t - 1:] 
+            
+            # Теперь у x_windows и y_targets одинаковая первая размерность
+            return x_windows, y_targets
 
-            if df.empty: return None
-
-            x_tensor = torch.tensor(df['normal_price'].values, dtype=torch.float32)
-            y_tensor = torch.tensor(df['predict_bool'].values, dtype=torch.float32).reshape(-1, 1)
-
-            first_delta_t = np.zeros(len(x_tensor))
-            first_delta_t[:DELTA_T] = 1
-            z_tenzor = torch.tensor(first_delta_t, dtype=torch.float32)
-
-            return x_tensor, y_tensor, z_tenzor
-
-        except Exception as e:
-            print(f"Ошибка в файле {file_path}: {e}")
+        except:
             return None
 
     def __len__(self):
         return len(self.X)
 
     def __getitem__(self, idx):
-      for i in range(DELTA_T+1):
-        if self.z[idx] == 0:
-          return self.X[idx-DELTA_T:idx], self.y[idx]
-        else:
-          idx = idx + 1
+        return self.X[idx], self.y[idx]
 
 
 def split_data(dataset, train_part=0.8):

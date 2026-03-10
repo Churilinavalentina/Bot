@@ -27,7 +27,7 @@ delta_t = 100
 k = 0.05
 
 
-class MyCSVDataset(Dataset):
+class MyParquetDataset(Dataset):
     def __init__(self, df, delta_t, k):
 
         # 2. Преобразование времени в формат datetime
@@ -100,8 +100,8 @@ index_80th = round(number_samples * 0.8)
 train_data = df.iloc[0:index_80th]
 test_data = df.iloc[index_80th:]
 
-dataset_train = MyCSVDataset(train_data, delta_t, k)
-dataset_test= MyCSVDataset(test_data, delta_t, k)
+dataset_train = MyParquetDataset(train_data, delta_t, k)
+dataset_test= MyParquetDataset(test_data, delta_t, k)
 
 train_loader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False)
