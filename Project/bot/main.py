@@ -6,7 +6,7 @@ import torch
 # Добавляем путь к папке config (родительская папка + config)
 sys.path.append(os.path.join(os.getcwd(), 'Project'))
 
-from params import INTERVAL, START_DATE, END_DATE, TICKERS, BATCH_SIZE, DELTA_T, DELTA_T_FUTURE, K
+from params import INTERVAL, START_DATE, END_DATE, TICKERS, BATCH_SIZE, DELTA_T, DELTA_T_FUTURE, K, FOLDER, TARGET
 from get_data import get_figi, get_values
 from read_data_bot import MyParquetBotDataset
 from post_order import post_order
@@ -20,20 +20,21 @@ from tqdm.autonotebook import tqdm
 from t_tech.invest import AsyncClient
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from open_account import wait_until_no_active_orders
 
-load_dotenv()
+load_dotenv(os.path.join(os.getcwd(), '.env'), override=True)
 TOKEN = os.environ["INVEST_TOKEN"]
 
 # 1. Выносим модель и устройство наружу, чтобы загрузить ОДИН РАЗ
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 model = MyModel(input_dim=DELTA_T).to(device)
-model.load_state_dict(torch.load('C:/Users/Valya/.vscode/Bot/model/27_02.pth', map_location=device))
+model.load_state_dict(torch.load(f"{FOLDER}models_{START_DATE.date()}-{END_DATE.date()}", map_location=device))
 model.eval()
 
 # TODO: пересмотреть. figi смотрим все, но покупаем ту акцию, где предсказание выполняется и максимальное
 
 # 2. Делаем основную функцию асинхронной (async def)
-async def trade_step(market_price, ID, prediction_delta, cash, quantity, figi_order):
+async def trade_step(client, ID, prediction_delta, cash):
     # Используем глобальную модель
     global model
     
@@ -57,57 +58,54 @@ async def trade_step(market_price, ID, prediction_delta, cash, quantity, figi_or
 
     print("Длина предсказаний " + str(len(all_preds)))
     all_preds = torch.cat(all_preds)
-    print(len(all_preds))
     max_idx_tensor = all_preds.argmax().item()
     max_preds = all_preds[max_idx_tensor].item()
     print("Предсказание " + str(max_preds))
-    current_price = ds.get_data_by_figi(ds.get_figi_by_index(max_idx_tensor))[1].item()
-    print("Текущая цена " + str(current_price))
 
     # Добавить подсчет количества
-    if (max_preds >= prediction_delta) & (quantity == 0):
+    if (max_preds >= prediction_delta):
         figi_order = ds.get_figi_by_index(max_idx_tensor)
-        print(ds.get_data_by_figi(figi_order)[1])
         market_price = ds.get_data_by_figi(figi_order)[1].item()
-        quantity = cash // market_price
+        quantity = cash // (market_price*1.05)
 
         print(f"Покупаем: {figi_order}, по цене: {market_price}, в количестве: {quantity}")
-        #await post_order(OrderDirection.ORDER_DIRECTION_BUY, ID, figi_order, quantity)
-        return market_price, quantity, figi_order 
-    
-    if (current_price >= market_price * (1.0 + K)) & (quantity > 0):
-        print(f"Продаем: {figi_order}, по цене: {market_price}, в количестве: {quantity}")
-        #await post_order(OrderDirection.ORDER_DIRECTION_SELL, ID, figi_order, quantity)
+        await post_order(client, OrderDirection.ORDER_DIRECTION_BUY, ID, figi_order, quantity, market_price)
         
-        quantity =0
-        figi_order = ''
-        market_price = 0.0
-        return market_price, quantity, figi_order # обновляем цену для следующего шага
+        print(f"Продаем: {figi_order}, по цене: {market_price * (1.0 + K*0.01)}, в количестве: {quantity}")
+        await post_order(client, OrderDirection.ORDER_DIRECTION_SELL, ID, figi_order, quantity, market_price * (1.0 + K))
     
-    return market_price, quantity, figi_order
+    
+    # current_price = ds.get_data_by_figi(figi_order)[1].item()
+    # print("Текущая цена " + str(current_price))
+    # if (current_price >= market_price * (1.0 + K)) & (quantity > 0):
+    #     print(f"Продаем: {figi_order}, по цене: {current_price}, в количестве: {quantity}")
+    #     await post_order(OrderDirection.ORDER_DIRECTION_SELL, ID, figi_order, quantity, current_price)
+        
+    #     quantity =0
+    #     figi_order = ''
+    #     market_price = 0.0
+    #     return market_price, quantity, figi_order # обновляем цену для следующего шага
 
 # 3. Создаем бесконечный цикл
-async def main_loop(start_price, account_id, prediction_delta, figi_order):
-    price = start_price
-    quantity = 0
-    while True:
-        try:
-            print("\n--- Новый цикл проверки ---")
-            cash = await get_account_status(TOKEN, account_id)
-            price, quantity, figi_order = await trade_step(price, account_id, prediction_delta, cash, quantity, figi_order)
-        except Exception as e:
-            print(f"❌ Ошибка в цикле: {e}")
-        
-        await asyncio.sleep(60) # Пауза 1 минута
-
+async def main_loop(account_id, prediction_delta):
+    async with AsyncClient(TOKEN, target=TARGET) as client:
+        while True:
+            try:
+                print("\n--- Новый цикл проверки ---")
+                await wait_until_no_active_orders(client, account_id) # Передаем клиент сюда
+                cash = await get_account_status(client, account_id)
+                await trade_step(client, account_id, prediction_delta, cash)
+            except Exception as e:
+                print(f"❌ Ошибка в цикле: {e}")
+            
+            await asyncio.sleep(60) # Пауза 1 минута
+    
 # 4. Точка входа
 if __name__ == "__main__":
-    INITIAL_PRICE = 0.0 # Укажите стартовую цену
-    ACCOUNT_ID = "07783257-b762-406d-9596-6df39a6e8180"
+    ACCOUNT_ID = "38cf68b3-a9a0-4507-8e92-6fc0dbf51732"
     prediction_delta = 0.5
-    figi_order = ''
     
     # Запускаем единственный event loop
-    asyncio.run(main_loop(INITIAL_PRICE, ACCOUNT_ID, prediction_delta, figi_order))
+    asyncio.run(main_loop(ACCOUNT_ID, prediction_delta))
     
     

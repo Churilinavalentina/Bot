@@ -16,7 +16,7 @@ from params import INTERVAL, START_DATE, END_DATE, TICKERS, FOLDER
 from tqdm.autonotebook import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-load_dotenv()
+load_dotenv(os.path.join(os.getcwd(), '.env'), override=True)
 TOKEN = os.environ["INVEST_TOKEN"]
 #Параметры выгрузки:
 
@@ -85,8 +85,6 @@ def get_values(figi_list, interval, start_date, end_date, num_workers=1):
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         results = list(tqdm(executor.map(download_one_figi, figi_list), total=len(figi_list)))
-        for res in results:
-            print(res)
 
     return 0
 

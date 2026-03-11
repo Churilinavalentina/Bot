@@ -48,7 +48,7 @@ class MyParquetDataset(Dataset):
             df = pd.read_parquet(file_path, columns=['time', 'open'])
             
             # 2. Быстрый фильтр времени
-            df = df[df['time'].str[11:13] != '23'].copy()
+            #df = df[df['time'].str[11:13] != '23'].copy()
             if df.empty: return None
 
             # 3. Векторизованный парсинг цены
@@ -59,11 +59,11 @@ class MyParquetDataset(Dataset):
             df['normal_price'] = df['open'].pct_change() * 100
             future_max = df['open'].rolling(window=self.delta_t_future).max().shift(-self.delta_t_future)
             df['predict_bool'] = ((future_max - df['open']) / df['open'] * 100 > self.k).astype(float)
-
+            
             df = df.dropna()
             
             x_values = torch.tensor(df['normal_price'].values, dtype=torch.float32)
-            y_values = torch.tensor(df['predict_bool'].values, dtype=torch.float32)
+            y_values = torch.tensor(df['predict_bool'].values, dtype=torch.float32).reshape(-1, 1)
 
             # 2. Нарезаем на окна прямо здесь через unfold
             # Это создает тензор формы [количество_окон, delta_t]

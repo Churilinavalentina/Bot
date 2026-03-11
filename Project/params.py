@@ -11,8 +11,8 @@ TARGET = INVEST_GRPC_API_SANDBOX
 IS_SANDBOX = 1
 
 INTERVAL = CandleInterval.CANDLE_INTERVAL_1_MIN
-START_DATE = datetime(2025, 11, 24, tzinfo=timezone.utc)
-END_DATE = datetime(2026, 2, 24, tzinfo=timezone.utc)
+START_DATE = datetime(2025, 12, 1, tzinfo=timezone.utc)
+END_DATE = datetime(2026, 3, 10, tzinfo=timezone.utc)
 # 99 самых ликвидных
 TICKERS = [
     "AFKS", "AFLT", "AKRN", "ALRS", "APTK", "AQUA", "ASTR", "BANEP", "BELU", "BSPB",
@@ -28,13 +28,13 @@ TICKERS = [
 ]
 
 EPOCHS = 25
-BATCH_SIZE= 30_000 * 20
+BATCH_SIZE= 30_000 * 10
 # Количество тиков для обучения
 DELTA_T= 100
 # Количество тиков для предсказания
-DELTA_T_FUTURE= 100
+DELTA_T_FUTURE= 30
 # желаемый проент прироста для предсказания
-K = 0.15
+K = 0.1
 TRAIN_PART = 0.8
 LOSS = 1e-4
 

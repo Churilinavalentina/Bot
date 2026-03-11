@@ -3,12 +3,13 @@ import pickle # для сохранения объектов.
 
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
-from params import START_DATE, END_DATE, DELTA_T, DELTA_T_FUTURE, K, TRAIN_PART, BATCH_SIZE, EPOCHS, LOSS, FOLDER
+from params import START_DATE, END_DATE, DELTA_T, DELTA_T_FUTURE, K, TRAIN_PART, BATCH_SIZE, EPOCHS, LOSS, FOLDER, TICKERS, INTERVAL
 from read_data import MyParquetDataset, split_data, check_balance
 from model import MyModel, calc_metrics
 from pathlib import Path
+from get_data import get_figi, get_values
 
-# get_values(get_figi(TICKERS).figi, INTERVAL, START_DATE, END_DATE, num_workers=1)
+#get_values(get_figi(TICKERS).figi, INTERVAL, START_DATE, END_DATE, num_workers=1)
 
 def main():
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -69,3 +70,30 @@ def main():
     
 if __name__ == '__main__':
     main()
+    # Подбор порога
+    # device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    # model = MyModel(input_dim=DELTA_T).to(device)
+    # model.load_state_dict(torch.load(f"{FOLDER}models_{START_DATE.date()}-{END_DATE.date()}", map_location=device))
+    # model.eval()
+
+    # full_ds = MyParquetDataset(DELTA_T, DELTA_T_FUTURE, K, START_DATE, END_DATE)
+    # train_ds, test_ds = split_data(full_ds, train_part=TRAIN_PART)
+    
+    # test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
+    
+    # all_preds = []
+    # all_true = []
+    # with torch.no_grad():
+    #     for batch_X, batch_y in tqdm(test_loader):
+    #         batch_X = batch_X.to(device)
+    #         batch_y = batch_y.to(device)
+    #         outputs = model(batch_X)
+    #         all_preds.extend(outputs)
+    #         all_true.extend(batch_y)
+
+    # all_preds = torch.cat(all_preds)
+    # all_true = torch.cat(all_true)
+    
+    # calc_metrics(all_preds, all_true, 0.999)
+
+    
